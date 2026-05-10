@@ -16,6 +16,7 @@ export function createReport() {
 		images: { written: 0, skipped: 0, failed: 0 },
 		unknownShortcodes: {},       // name -> count
 		blocks: {},                  // name -> count
+		blocksViaFallback: {},       // name -> count (handled generically via HTML→MD)
 		metaSummary: { frontmatter: 0, complex: 0, skipped: 0 },
 		brokenLinks: [],
 		warnings: []
@@ -76,6 +77,13 @@ function renderText(r) {
 	if (Object.keys(r.blocks).length > 0) {
 		lines.push('Gutenberg blocks encountered:');
 		for (const [k, v] of Object.entries(r.blocks).sort((a, b) => b[1] - a[1])) {
+			lines.push(`  - wp:${k}: ${v}`);
+		}
+		lines.push('');
+	}
+	if (r.blocksViaFallback && Object.keys(r.blocksViaFallback).length > 0) {
+		lines.push('Blocks converted via generic HTML→MD (consider adding a handler):');
+		for (const [k, v] of Object.entries(r.blocksViaFallback).sort((a, b) => b[1] - a[1])) {
 			lines.push(`  - wp:${k}: ${v}`);
 		}
 		lines.push('');

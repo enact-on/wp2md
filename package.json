@@ -24,6 +24,9 @@
 		"node": ">= 20.5.0"
 	},
 	"type": "module",
+	"scripts": {
+		"test": "node test/run.js"
+	},
 	"dependencies": {
 		"@guyplusplus/turndown-plugin-gfm": "^1.0.7",
 		"@inquirer/prompts": "^8.4.2",

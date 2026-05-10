@@ -112,8 +112,13 @@ async function renderOne(block, ctx) {
 		return { text: childParts.join('\n\n'), isJsx: childJsx, handled: false };
 	}
 
-	// 4) Plain HTML chunk -> turndown
+	// 4) Generic HTML → Markdown fallback. Track it so the report can show users
+	//    which block types got generic conversion and may need custom handlers.
 	if (!innerHtml.trim()) return { text: '', isJsx: false, handled: false };
+	if (name && ctx.report) {
+		ctx.report.blocksViaFallback ??= {};
+		ctx.report.blocksViaFallback[name] = (ctx.report.blocksViaFallback[name] ?? 0) + 1;
+	}
 	try {
 		return { text: turndownFn(innerHtml).trim(), isJsx: false, handled: false };
 	} catch {
