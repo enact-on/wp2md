@@ -1,247 +1,185 @@
 # wordpress-export-to-markdown
 
-Converts a WordPress export XML file into Markdown files. This makes it easy to migrate from WordPress to a static site generator ([Eleventy](https://www.11ty.dev/), [Gatsby](https://www.gatsbyjs.com/), [Hugo](https://gohugo.io/), etc.).
+Converts a WordPress export XML file (or many) into Markdown / MDX files, with **full custom post type, custom taxonomy, custom field, link, and media handling**. Built for migrating real, messy, multi-site WordPress estates onto Astro, Eleventy, Hugo, or Gatsby.
 
-![wordpress-export-to-markdown running in a terminal](https://github.com/user-attachments/assets/7ac1aa07-b6ee-46f4-ab49-291c1c45f350)
+> Originally by Will Boyd. v4 is a near-rewrite focused on production-grade migrations across many client sites.
 
-## Features
+## What v4 adds
 
-- Saves each post as a separate Markdown file with frontmatter.
-- Also saves drafts, pages, and custom post types, if you have any.
-- Downloads images and updates references to them.
-- User-friendly wizard guides you through the process.
-- Lots of command line options for configuration, if needed.
+- **Interactive custom post type selection** — auto-detects every `post_type` in the XML, asks which ones to export, supports per-type folder renames.
+- **Auto-detected custom taxonomies** — every taxonomy beyond `category`/`post_tag` is surfaced and emitted into frontmatter; the term registry (with hierarchy + descriptions) is written to `data/taxonomies.json` for Astro landing pages.
+- **Custom field pipeline** — every `wp:postmeta` is decoded (PHP-serialized blobs, JSON, scalars), classified, and emitted as either:
+	- a frontmatter scalar / array (simple values), or
+	- an MDX `export const fieldName = {...};` block at the top of the file (nested objects, arrays, repeaters, long strings).
+- **MDX output** — defaults to `.mdx` (or `auto` to pick `.mdx` only when complex fields are present); MDX-safe escaping is applied to body content.
+- **Plugin packs** for **ACF**, **Yoast**, **RankMath**, **WooCommerce** — drop SEO meta into a tidy `seo: {}` object, product meta into `product: {}`, ACF reference noise is dropped, and you can add your own with `wetm.config.js`.
+- **Link rewriting** — internal `<a>` and `<img>` URLs that point at any post in scope get rewritten to their new relative routes (`/posts/<slug>/`, `/case-studies/<slug>/`, …). A `_redirects` file (Netlify / Cloudflare format) is emitted with `301`s for every old permalink.
+- **Multi-file / multi-GB-friendly input** — `--input` accepts a single file, a directory, or a glob; items are deduped by `post_id`.
+- **Real YAML emitter** — uses `yaml`, supports nested objects, multiline strings, unicode, the lot. No more hand-rolled escaping bugs.
+- **Expanded media** — picks up `srcset`, `<picture>`/`<source>`, lazy-load attributes, CSS `background-image`, and any attachment file extension you list (PDF, MP4, SVG, ZIP, …).
+- **Authors registry** — `data/authors.json` written from `<wp:author>` records.
+- **Gutenberg block + shortcode tracking** — every block name and unknown shortcode encountered is listed in `migration-report.txt`/`.json` so you know what to map next.
+- **Config file API** — drop a `wetm.config.{js,mjs,json}` next to your CLI invocation to pin per-site rules and register custom plugins.
+- **Dry run** — `--dry-run=true` produces only the migration report; great for client estimates.
+- **Resilient image downloads** — automatic retries with exponential backoff.
 
-## Quick Start
-
-You'll need:
-
-- [Node.js](https://nodejs.org/) installed.
-- Your [WordPress export file](https://wordpress.org/support/article/tools-export-screen/). Be sure to export "All Content".
-
-Then run this in your terminal:
+## Quick start
 
 ```
 npx wordpress-export-to-markdown
 ```
 
-## Options
+The wizard will:
 
-The script will start with a wizard to ask you a few questions.
+1. Ask for your XML file / directory / glob.
+2. Discover post types and ask which to export.
+3. Discover custom taxonomies and ask which to include.
+4. Ask the standard image / folder / format questions.
 
-Optionally, you can provide answers to any of these questions via command line arguments, in which case the wizard will skip asking those questions. Here's an example:
-
-```
-npx wordpress-export-to-markdown --post-folders=false --prefix-date=true
-```
-
-The questions are given below, including a snippet for each one showing its command line argument set to its default value.
-
-### Path to WordPress export file?
+Or skip the wizard entirely:
 
 ```
---input=export.xml
+node app.js --wizard=false \
+	--input=exports/ \
+	--output=output \
+	--post-types=post,page,case_study,product \
+	--taxonomies=industry \
+	--output-format=auto \
+	--site-url=https://oldsite.com
 ```
 
-The path to your [WordPress export file](https://wordpress.org/documentation/article/tools-export-screen/). To make things easier, you can rename it to `export.xml` and drop it into the same directory that you run the script from.
-
-Allowed values:
-
-- Any path to a file that exists.
-
-### Put each post into its own folder?
+## Output layout
 
 ```
---post-folders=true
+output/
+├── posts/
+│   └── hello-world/
+│       └── index.md
+├── case-studies/                 ← renamed via wetm.config.js
+│   └── acme/
+│       └── index.mdx             ← .mdx because it has complex fields
+├── pages/
+├── data/
+│   ├── authors.json
+│   └── taxonomies.json
+├── _redirects                    ← old → new permalinks (301)
+├── migration-report.txt
+└── migration-report.json
 ```
 
-Whether or not to create a separate folder for each post's Markdown file (and images).
+## Custom field handling, in detail
 
-Allowed values:
+Given this in the export:
 
-- `true` - A folder is created for each post, with an `index.md` file and `/images` folder within. The post slug is used to name the folder.
-- `false` - The post slug is used to name each post's Markdown file. These files are all saved in the same folder. All images are saved in a shared `/images` folder.
-
-### Add date prefix to posts?
-
-```
---prefix-date=false
-```
-
-Whether or not to prepend the post date when naming a post's folder or file.
-
-Allowed values:
-
-- `true` - Prepend the date, in the format `<year>-<month>-<day>`. Nothing will be prepended if there is no date (for example, an undated draft post).
-- `false` - Don't prepend the date.
-
-### Organize posts into date folders?
-
-```
---date-folders=none
+```xml
+<wp:postmeta>
+	<wp:meta_key>client_name</wp:meta_key>
+	<wp:meta_value><![CDATA[Acme Healthcare]]></wp:meta_value>
+</wp:postmeta>
+<wp:postmeta>
+	<wp:meta_key>specifications</wp:meta_key>
+	<wp:meta_value><![CDATA[a:3:{s:10:"dimensions";a:2:{s:5:"width";i:12;s:6:"height";i:8;}s:8:"features";a:3:{i:0;s:1:"a";i:1;s:1:"b";i:2;s:1:"c";}s:8:"in_stock";b:1;}]]></wp:meta_value>
+</wp:postmeta>
 ```
 
-If and how output is organized into folders based on date.
+You get this `.mdx` out:
 
-Allowed values:
+```mdx
+---
+client_name: "Acme Healthcare"
+title: "Acme Healthcare Case Study"
+industry:
+  - "healthcare"
+---
 
-- `year` - Output is organized into folders by year. This won't happen for posts with no date (for example, an undated draft post).
-- `year‑month` - Output is organized into folders by year, then into nested folders by month. Again, for posts with no date, this won't happen.
-- `none` - No date folders are created.
+export const specifications = {
+  dimensions: {
+    width: 12,
+    height: 8
+  },
+  features: ["a", "b", "c"],
+  in_stock: true
+};
 
-### Save images?
-
-```
---save-images=all
-```
-
-Which images you want to download and save.
-
-Allowed values:
-
-- `attached` - Save images attached to posts. Generally speaking, these are images that were uploaded by using **Add Media** or **Set Featured Image** in WordPress.
-- `scraped` - Save images scraped from `<img>` tags in post body content. The `<img>` tags are updated to point to where the images are saved.
-- `all` - Save all images, essentially the results of `attached` and `scraped` combined.
-- `none` - Don't save any images.
-
-## Advanced Options
-
-These are not included in the wizard, so you'll need to set them on the command line.
-
-### Use wizard?
-
-```
---wizard=true
+The customer has **specifications** below.
 ```
 
-Whether or not to use the wizard.
-
-Allowed values:
-
-- `true` - The script will start with a wizard to ask five questions (the ones from the [Options](#options) section) minus any that were answered on the command line.
-- `false` - Skip wizard. Options set via command line are taken, while the rest have their default values used.
-
-### Path to output folder?
+Override the classification per-key:
 
 ```
---output=output
+--meta-rules=price:frontmatter,gallery:complex,_internal:skip,seo_title:frontmatter:seo.title
 ```
 
-The path to the output folder where files will be saved. It'll be created if it doesn't exist. Existing files there won't be overwritten and won't be downloaded again. This lets you resume progress by restarting the script, if it was previously terminated early. To start clean, delete the output folder.
+Format: `key:mode[:alias]`. `mode` is one of `frontmatter`, `complex`, or `skip`. The optional alias supports dotted nesting in frontmatter.
 
-Allowed values:
+## Plugin API
 
-- Any valid folder path.
+Drop a `wetm.config.js` in your project root:
 
-### Frontmatter fields?
-
-```
---frontmatter-fields=title,date,categories,tags,coverImage,draft
-```
-
-Comma separated list of the frontmatter fields to include in Markdown files. Order is preserved. If a post doesn't have a value for a field, it is left off.
-
-Allowed values:
-
-- A comma separated list with any of the following: `author`, `categories`, `coverImage`, `date`, `draft`, `excerpt`, `id`, `slug`, `tags`, `title`, `type`. You can rename a field by appending `:` and the alias to use. For example, `date:created` will rename `date` to `created`.
-
-### Delay between image file requests?
-
-```
---request-delay=500
-```
-
-Time (in milliseconds) to wait between requesting image files. Increasing this might help if you see timeouts or server errors.
-
-Allowed values:
-
-- Any positive integer.
-
-### Delay between writing markdown files?
-
-```
---write-delay=10
+```js
+export default {
+	postTypeConfig: {
+		case_study: { folder: 'case-studies' }   // rename output folder
+	},
+	plugins: [
+		{
+			name: 'acme-extras',
+			onMeta({ metas, frontmatter, exports, consumed }) {
+				// custom logic. mutate frontmatter / push to exports / mark consumed.
+			},
+			onShortcode({ name, attrs, inner }) {
+				if (name === 'pricing-table') {
+					return `<PricingTable plan="${attrs.plan}" />`;
+				}
+			}
+		}
+	]
+};
 ```
 
-Time (in milliseconds) to wait between saving Markdown files. Increasing this might help if your file system becomes overloaded.
+Built-in plugins: `acf`, `yoast`, `rankmath`, `woocommerce` (enabled by default; disable via `--plugins=...`).
 
-Allowed values:
+## All CLI options
 
-- Any positive integer.
+Run `node app.js --help` for the full list. The most useful additions over v3:
 
-### Timezone to apply to date?
+| Option | Default | Purpose |
+|---|---|---|
+| `--input` | `export.xml` | File, directory, or glob |
+| `--output-format` | `mdx` | `mdx`, `md`, or `auto` |
+| `--post-types` | _ask_ | Which post types to include |
+| `--taxonomies` | _all_ | Which custom taxonomies to include |
+| `--meta-rules` | _empty_ | Per-key meta classification |
+| `--meta-deny` | _empty_ | Postmeta keys to drop outright |
+| `--include-private-meta` | `false` | Include underscore-prefixed meta |
+| `--max-frontmatter-string-length` | `200` | Long strings move to MDX export blocks |
+| `--plugins` | `acf,yoast,rankmath,woocommerce` | Built-in plugin packs |
+| `--site-url` | _from XML_ | Used for link rewriting |
+| `--rewrite-links` | `true` | Rewrite internal post-to-post links |
+| `--emit-redirects` | `true` | Write `_redirects` |
+| `--emit-taxonomies` | `true` | Write `data/taxonomies.json` |
+| `--emit-authors` | `true` | Write `data/authors.json` |
+| `--attachment-types` | `gif,jpg,jpeg,png,webp,svg,avif,pdf,mp3,mp4,webm,doc,docx,xls,xlsx,zip` | Attachment file types to download |
+| `--config` | _auto_ | Explicit config file path |
+| `--dry-run` | `false` | Skip writes; report only |
 
-```
---timezone=utc
-```
+## Migration report
 
-The timezone applied to post dates.
+Every run writes `migration-report.txt` and `migration-report.json` containing:
 
-Allowed values:
+- post counts per type
+- taxonomy / author counts
+- write / skip / fail counts for posts and images
+- meta-field summary (frontmatter vs complex vs skipped)
+- every Gutenberg block encountered (so you can map the unknown ones to JSX)
+- every unknown shortcode encountered (so you can add a handler)
 
-- Any valid timezone as [specified here](https://moment.github.io/luxon/#/zones?id=specifying-a-zone).
-
-### Include time with frontmatter date?
-
-```
---include-time=false
-```
-
-Whether or not time should be included with the date in frontmatter.
-
-Allowed values:
-
-- `true` - Time is included using an ISO 8601-compliant format. For example, `2020-12-25T11:20:35.000Z`.
-- `false` - Time is not included. For example, `2020-12-25`.
-
-### Frontmatter date format string?
-
-```
---date-format=""
-```
-
-A custom formatting string to apply to frontmatter dates. If set, takes precedence over `--include-time`. An empty string (the default) is ignored, resulting in the basic `<year>-<month>-<day>` format.
-
-Allowed values:
-
-- Any valid custom formatting string. See [this table of tokens](https://moment.github.io/luxon/#/parsing?id=table-of-tokens).
-
-### Wrap frontmatter date in quotes?
+## Local development
 
 ```
---quote-date=false
+git clone <fork>
+npm install
+node app.js --input=test/fixtures/export.xml --output=test/output --wizard=false --save-images=none
 ```
 
-Whether or not to put double quotes around the date when writing it to frontmatter.
-
-Allowed values:
-
-- `true` - Adds double quotes. This technically turns the date into a string value.
-- `false` - Doesn't add double quotes.
-
-### Use strict SSL?
-
-```
---strict-ssl=true
-```
-
-Whether or not to use strict SSL when downloading images.
-
-Allowed values:
-
-- `true` - Use strict SSL. This is the safer option.
-- `false` - Don't use strict SSL. This will let you avoid the "self-signed certificate" error when working with a self-signed server. Just make sure you know what you're doing.
-
-## Local Development
-
-You can install and run this script locally if you want to tinker with it:
-
-1. `git clone` this repo.
-2. `cd` into the repo directory.
-3. Run `npm install`.
-
-Now instead of running `npx wordpress-export-to-markdown` you can run `node app`. They both take all the same command line arguments in the same way.
-
-## Contributing
-
-Please read the [contribution guidelines](https://github.com/lonekorean/wordpress-export-to-markdown/blob/master/.github/CONTRIBUTING.md).
+The included `test/fixtures/export.xml` exercises custom post types, custom taxonomies, ACF references, Yoast meta, WooCommerce meta, PHP-serialized arrays, JSON arrays, internal links, and Gutenberg blocks.

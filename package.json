@@ -1,15 +1,22 @@
 {
 	"name": "wordpress-export-to-markdown",
-	"version": "3.0.4",
-	"description": "Converts a WordPress export XML file into Markdown files.",
+	"version": "4.0.0",
+	"description": "Converts a WordPress export XML file (or many) into Markdown / MDX, with full custom post type, taxonomy, and custom field handling, ready for Astro / Eleventy / Hugo / Gatsby.",
 	"main": "app.js",
 	"repository": "https://github.com/lonekorean/wordpress-export-to-markdown.git",
 	"keywords": [
+		"acf",
+		"astro",
 		"blog",
 		"convert",
+		"custom-fields",
+		"custom-post-type",
 		"export",
 		"markdown",
-		"wordpress"
+		"mdx",
+		"wordpress",
+		"woocommerce",
+		"yoast"
 	],
 	"author": "Will Boyd <will@codersblock.com> (https://codersblock.com)",
 	"license": "MIT",
@@ -19,13 +26,17 @@
 	"type": "module",
 	"dependencies": {
 		"@guyplusplus/turndown-plugin-gfm": "^1.0.7",
-		"@inquirer/prompts": "^7.4.0",
-		"axios": "^1.8.2",
-		"chalk": "^5.4.1",
-		"commander": "^13.1.0",
-		"luxon": "^3.5.0",
-		"turndown": "^7.2.0",
-		"xml2js": "^0.6.2"
+		"@inquirer/prompts": "^8.4.2",
+		"@wordpress/block-serialization-default-parser": "^5.45.0",
+		"axios": "^1.16.0",
+		"chalk": "^5.6.2",
+		"commander": "^14.0.3",
+		"fast-glob": "^3.3.3",
+		"luxon": "^3.7.2",
+		"php-unserialize": "^0.0.1",
+		"turndown": "^7.2.4",
+		"xml2js": "^0.6.2",
+		"yaml": "^2.8.4"
 	},
 	"bin": {
 		"wordpress-export-to-markdown": "./app.js"

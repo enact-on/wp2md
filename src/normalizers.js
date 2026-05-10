@@ -13,6 +13,12 @@ export function boolean(value) {
 	throw new Error('Must be true or false.');
 }
 
+export function string(value) {
+	return value;
+}
+
+// Used by the legacy `file-path` question type. Kept for backward compatibility
+// but `--input` now also accepts directories and globs (see input.js).
 export function filePath(value) {
 	const unwrapped = value.replace(/"(.*?)"/, '$1');
 	const absolute = path.resolve(unwrapped);
@@ -35,7 +41,9 @@ export function list(value) {
 	if (Array.isArray(value)) {
 		return value;
 	} else {
-		return value.trim().split(/\s*,\s*/);
+		const trimmed = value.trim();
+		if (trimmed.length === 0) return [];
+		return trimmed.split(/\s*,\s*/);
 	}
 }
 
