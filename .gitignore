@@ -6,3 +6,7 @@ tmp/
 #ignore specific filenames
 #export.xml
 .DS_Store
+
+test/.manual-out
+test/output
+test/output-config

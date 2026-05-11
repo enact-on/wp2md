@@ -149,7 +149,7 @@ export function load() {
 			name: 'plugins',
 			type: 'list',
 			description: 'Comma-separated list of plugins to enable',
-			default: 'acf,yoast,rankmath,woocommerce'
+			default: 'acf,yoast,rankmath,seopress,woocommerce'
 		},
 		{
 			name: 'site-url',

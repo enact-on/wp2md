@@ -119,6 +119,10 @@ export async function buildPosts(allItems, ctx) {
 
 		const post = buildPost(item, type, selectedTaxonomies, plugins, report);
 
+		// Apply post filter hook — return false to exclude
+		const filterFn = shared.config.postFilter;
+		if (typeof filterFn === 'function' && filterFn(post) === false) continue;
+
 		// Track Gutenberg blocks via the structured parser (covers nested) with
 		// a regex fallback if the parser fails or finds nothing.
 		const raw = item.optionalChildValue('encoded') ?? '';
@@ -157,15 +161,19 @@ function buildPost(item, type, selectedTaxonomies, plugins, report) {
 		frontmatter: {}
 	};
 
-	// Process custom fields through the meta pipeline (PHP unserialize, classify, plugins).
+	// Merge global meta rules with per-type overrides (type-specific wins)
+	const globalRules = shared.config.metaRulesParsed ?? {};
+	const perTypeRules = shared.config._perTypeMetaRules?.[type] ?? {};
 	const metaOptions = {
-		metaRules: shared.config.metaRulesParsed ?? {},
+		metaRules: { ...globalRules, ...perTypeRules },
 		metaDeny: shared.config.metaDeny ?? [],
 		includePrivateMeta: shared.config.includePrivateMeta ?? false,
-		maxFrontmatterStringLength: shared.config.maxFrontmatterStringLength ?? 200
+		maxFrontmatterStringLength: shared.config.maxFrontmatterStringLength ?? 200,
+		unknownFallback: shared.config.metaUnknownFallback ?? null,  // null = auto-classify (legacy)
 	};
 	const metaResult = metaLib.processMeta(post, metaOptions, plugins);
 	post._metaResult = metaResult;
+	post._decodedMeta = metaResult.decodedMeta ?? {};
 
 	// Update report
 	report.metaSummary.frontmatter += metaResult.report.frontmatter.length;
@@ -218,7 +226,10 @@ export async function finalizePost(post, ctx) {
 	}
 
 	// apply built-in frontmatter fields (after meta merging so meta is not clobbered)
-	for (const field of shared.config.frontmatterFields ?? []) {
+	const frontmatterFields = shared.config._perTypeFrontmatterFields?.[post.type]
+		?? shared.config.frontmatterFields
+		?? [];
+	for (const field of frontmatterFields) {
 		const [key, alias] = field.split(':');
 		const getter = frontmatter[key] ?? frontmatter.getCustom(key);
 		if (!getter) {
@@ -230,6 +241,136 @@ export async function finalizePost(post, ctx) {
 			post.frontmatter[alias ?? key] = value;
 		}
 	}
+
+	// Apply frontmatter aliases (rename built-in field keys in output)
+	const aliases = shared.config.frontmatterAliases ?? {};
+	for (const [from, to] of Object.entries(aliases)) {
+		if (Object.prototype.hasOwnProperty.call(post.frontmatter, from)) {
+			post.frontmatter[to] = post.frontmatter[from];
+			delete post.frontmatter[from];
+		}
+	}
+
+	// Apply custom computed frontmatter fields
+	const customFields = shared.config.frontmatterCustom ?? {};
+	for (const [key, getter] of Object.entries(customFields)) {
+		if (typeof getter !== 'function') continue;
+		try {
+			const value = getter(post);
+			if (value !== undefined && value !== null) post.frontmatter[key] = value;
+		} catch (ex) {
+			console.warn(`Custom frontmatter getter "${key}" threw: ${ex.message}`);
+		}
+	}
+
+	// Apply plugin onFrontmatter hooks
+	for (const plugin of plugins) {
+		if (typeof plugin.onFrontmatter === 'function') {
+			try {
+				const next = plugin.onFrontmatter({ frontmatter: post.frontmatter, post });
+				if (next && typeof next === 'object') post.frontmatter = next;
+			} catch (ex) {
+				console.warn(`Plugin "${plugin.name}" onFrontmatter threw: ${ex.message}`);
+			}
+		}
+	}
+
+	// Apply global transformFrontmatter hook
+	const transformFm = shared.config.hooks?.transformFrontmatter;
+	if (typeof transformFm === 'function') {
+		try {
+			const next = transformFm(post.frontmatter, post);
+			if (next && typeof next === 'object') post.frontmatter = next;
+		} catch (ex) {
+			console.warn(`hooks.transformFrontmatter threw: ${ex.message}`);
+		}
+	}
+
+	// contentFields: append/prepend meta values into the markdown body
+	const contentFieldDefs = shared.config.contentFields ?? [];
+	if (contentFieldDefs.length > 0) {
+		post.content = applyContentFields(post, post.content, contentFieldDefs);
+	}
+
+	// Apply plugin onContent hooks
+	for (const plugin of plugins) {
+		if (typeof plugin.onContent === 'function') {
+			try {
+				const next = plugin.onContent({ content: post.content, post });
+				if (typeof next === 'string') post.content = next;
+			} catch (ex) {
+				console.warn(`Plugin "${plugin.name}" onContent threw: ${ex.message}`);
+			}
+		}
+	}
+
+	// Apply global transformContent hook
+	const transformContent = shared.config.hooks?.transformContent;
+	if (typeof transformContent === 'function') {
+		try {
+			const next = transformContent(post.content, post);
+			if (typeof next === 'string') post.content = next;
+		} catch (ex) {
+			console.warn(`hooks.transformContent threw: ${ex.message}`);
+		}
+	}
+
+	// Apply plugin onPost hooks (post fully assembled)
+	for (const plugin of plugins) {
+		if (typeof plugin.onPost === 'function') {
+			try {
+				const next = plugin.onPost({ post });
+				if (next && typeof next === 'object') Object.assign(post, next);
+			} catch (ex) {
+				console.warn(`Plugin "${plugin.name}" onPost threw: ${ex.message}`);
+			}
+		}
+	}
+
+	// Apply global transformPost hook
+	const transformPost = shared.config.hooks?.transformPost;
+	if (typeof transformPost === 'function') {
+		try {
+			const next = transformPost(post);
+			if (next && typeof next === 'object') Object.assign(post, next);
+		} catch (ex) {
+			console.warn(`hooks.transformPost threw: ${ex.message}`);
+		}
+	}
+}
+
+function applyContentFields(post, content, defs) {
+	const prepend = [];
+	const append = [];
+
+	for (const def of defs) {
+		if (!def.key) continue;
+		const rawValue = post._decodedMeta?.[def.key];
+		if (rawValue === undefined || rawValue === null || rawValue === '') continue;
+
+		let text;
+		if (typeof def.template === 'function') {
+			try { text = def.template(rawValue, post); } catch { continue; }
+		} else {
+			const valueStr = typeof rawValue === 'object'
+				? JSON.stringify(rawValue, null, 2)
+				: String(rawValue);
+			text = def.heading ? `${def.heading}\n\n${valueStr}` : valueStr;
+		}
+		if (!text) continue;
+
+		if (def.position === 'prepend') {
+			prepend.push(text);
+		} else {
+			append.push(text);
+		}
+	}
+
+	const parts = [];
+	if (prepend.length > 0) parts.push(prepend.join('\n\n'));
+	if (content) parts.push(content);
+	if (append.length > 0) parts.push(append.join('\n\n'));
+	return parts.join('\n\n');
 }
 
 function getPostDate(item) {

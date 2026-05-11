@@ -16,7 +16,8 @@ const DEFAULT_DENY_PREFIXES = [
 	'_wp_old_',
 	'_wp_attachment_metadata',
 	'_wp_attached_file',
-	'_yoast_indexable_'
+	'_yoast_indexable_',
+	'_seopress_analysis_'
 ];
 
 const DEFAULT_ALLOW_UNDERSCORE = new Set([
@@ -130,7 +131,9 @@ export function processMeta(post, options, plugins) {
 	const result = {
 		frontmatter: { ...ctx.frontmatter },
 		exports: [...ctx.exports],
-		report: { skipped: [], frontmatter: [], complex: [] }
+		report: { skipped: [], frontmatter: [], complex: [] },
+		// Full decoded meta map — used by contentFields and hooks
+		decodedMeta: Object.fromEntries(metas.map((m) => [m.key, m.value]))
 	};
 
 	for (const meta of metas) {
@@ -143,21 +146,29 @@ export function processMeta(post, options, plugins) {
 		}
 
 		const rule = options.metaRules[meta.key];
-		const classification = rule?.mode ?? classify(meta.value, options);
+		// If no explicit rule, use unknownFallback (default: auto-classify for backward compat)
+		const defaultClassification = rule
+			? classify(meta.value, options)
+			: (options.unknownFallback !== 'skip' ? (options.unknownFallback ?? classify(meta.value, options)) : 'skip');
+		const classification = rule?.mode ?? defaultClassification;
 		if (classification === 'skip') {
 			result.report.skipped.push(meta.key);
 			continue;
 		}
 
 		const targetKey = rule?.alias ?? meta.key;
+		// Apply optional transform function from the rule
+		const value = (rule?.transform && typeof rule.transform === 'function')
+			? rule.transform(meta.value)
+			: meta.value;
 
 		if (classification === 'frontmatter') {
-			setDotted(result.frontmatter, targetKey, meta.value);
+			setDotted(result.frontmatter, targetKey, value);
 			result.report.frontmatter.push(meta.key);
 		} else {
 			result.exports.push({
 				name: toIdentifier(targetKey),
-				value: meta.value
+				value
 			});
 			result.report.complex.push(meta.key);
 		}

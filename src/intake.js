@@ -28,7 +28,19 @@ export async function getConfig() {
 		shared.logHeading('Skipping wizard');
 	}
 
-	Object.assign(shared.config, commandLineAnswers, wizardAnswers);
+	// When a new-format config file was loaded, only apply CLI answers that the
+	// user explicitly provided (not Commander defaults), so config-file values win.
+	const hasNewFormatConfig = Boolean(shared.config._wetmConfig);
+	if (hasNewFormatConfig) {
+		const explicitAnswers = {};
+		for (const [key, value] of Object.entries(commandLineAnswers)) {
+			if (commander.program.getOptionValueSource(key) === 'default') continue;
+			explicitAnswers[key] = value;
+		}
+		Object.assign(shared.config, explicitAnswers, wizardAnswers);
+	} else {
+		Object.assign(shared.config, commandLineAnswers, wizardAnswers);
+	}
 
 	// Load config file (if any) and merge underneath CLI/wizard answers.
 	// CLI/wizard always wins.

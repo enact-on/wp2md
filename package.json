@@ -25,7 +25,10 @@
 	},
 	"type": "module",
 	"scripts": {
-		"test": "node test/run.js"
+		"test": "node test/run.js && node test/run-config.js",
+		"test:unit": "node --test test/unit/*.test.js",
+		"test:e2e": "node test/run.js && node test/run-config.js",
+		"test:all": "node --test test/unit/*.test.js && node test/run.js && node test/run-config.js"
 	},
 	"dependencies": {
 		"@guyplusplus/turndown-plugin-gfm": "^1.0.7",

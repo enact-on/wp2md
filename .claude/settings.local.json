@@ -2,7 +2,20 @@
   "permissions": {
     "allow": [
       "Bash(node test/run.js)",
-      "Bash(node app.js *)"
+      "Bash(node app.js *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\AI Coditor\\\\wordpress-export-to-markdown\" -Recurse -File)",
+      "Bash(Select-Object FullName)",
+      "Bash(Get-ChildItem -Path \"D:\\\\AI Coditor\\\\wordpress-export-to-markdown\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)",
+      "Bash(Format-Table Name, FullName)",
+      "Bash(node --test test/unit/analyzer.test.js)",
+      "Bash(node --test test/unit/config-generator.test.js)",
+      "Bash(node --test test/unit/config-schema.test.js)",
+      "Bash(node -e \"import\\('./wetm.config.js'\\).then\\(m => console.log\\('Valid JS, keys:', Object.keys\\(m.default\\).join\\(', '\\)\\)\\).catch\\(e => console.error\\('INVALID:', e.message\\)\\)\")",
+      "Bash(del wetm.config.js)",
+      "Bash(node test/run-config.js)",
+      "Bash(npm run *)",
+      "Bash(node --test test/unit/*.test.js)"
     ]
   }
 }

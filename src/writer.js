@@ -12,15 +12,35 @@ export async function writeFilesPromise(posts, extras = {}) {
 	const writtenPath = await writeMarkdownFilesPromise(posts, extras.report);
 	if (extras.taxonomies) {
 		await writeJsonFile(path.join(shared.config.output, 'data', 'taxonomies.json'), extras.taxonomies);
+		// Astro content collections: one JSON file per term per taxonomy
+		if (shared.config.emitAstroCollections) {
+			await writeAstroCollections(extras.taxonomies);
+		}
 	}
 	if (extras.authors) {
 		await writeJsonFile(path.join(shared.config.output, 'data', 'authors.json'), extras.authors);
 	}
 	if (extras.redirects && extras.redirects.length > 0) {
-		await writeRedirects(path.join(shared.config.output, '_redirects'), extras.redirects);
+		const redirectsPath = shared.config.redirectsPath ?? '_redirects';
+		await writeRedirects(
+			path.join(shared.config.output, redirectsPath),
+			extras.redirects,
+			shared.config.redirectsFormat ?? 'netlify'
+		);
 	}
 	await writeImageFilesPromise(posts, extras.report);
 	return writtenPath;
+}
+
+// Writes src/content/[taxonomy]/[slug].json for Astro content collections.
+async function writeAstroCollections(taxonomies) {
+	for (const [tax, terms] of Object.entries(taxonomies)) {
+		for (const term of terms) {
+			const filePath = path.join('src', 'content', tax, `${term.slug}.json`);
+			const destPath = path.join(shared.config.output, filePath);
+			await writeJsonFile(destPath, term);
+		}
+	}
 }
 
 async function processPayloadsPromise(payloads, loadFunc, report, kind) {
@@ -54,11 +74,33 @@ async function writeJsonFile(destinationPath, data) {
 	console.log(chalk.gray(`Wrote ${path.relative(shared.config.output, destinationPath)}`));
 }
 
-async function writeRedirects(destinationPath, redirects) {
-	const lines = redirects.map((r) => `${r.from} ${r.to} 301`);
+async function writeRedirects(destinationPath, redirects, format = 'netlify') {
+	let content;
+	switch (format) {
+		case 'next':
+			content = JSON.stringify(
+				{ redirects: redirects.map((r) => ({ source: r.from, destination: r.to, permanent: true })) },
+				null, 2
+			) + '\n';
+			break;
+		case 'vercel':
+			content = JSON.stringify(
+				{ redirects: redirects.map((r) => ({ source: r.from, destination: r.to, permanent: true })) },
+				null, 2
+			) + '\n';
+			break;
+		case 'apache':
+			content = redirects.map((r) => `Redirect 301 ${r.from} ${r.to}`).join('\n') + '\n';
+			break;
+		case 'nginx':
+			content = redirects.map((r) => `rewrite ^${r.from}$ ${r.to} permanent;`).join('\n') + '\n';
+			break;
+		default: // netlify
+			content = redirects.map((r) => `${r.from} ${r.to} 301`).join('\n') + '\n';
+	}
 	await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
-	await fs.promises.writeFile(destinationPath, lines.join('\n') + '\n');
-	console.log(chalk.gray(`Wrote ${path.relative(shared.config.output, destinationPath)} (${redirects.length} redirects)`));
+	await fs.promises.writeFile(destinationPath, content);
+	console.log(chalk.gray(`Wrote ${path.relative(shared.config.output, destinationPath)} (${redirects.length} redirects, ${format} format)`));
 }
 
 async function writeMarkdownFilesPromise(posts, report) {
