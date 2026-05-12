@@ -76,6 +76,7 @@ function translate(cfg) {
 		setIfAbsent('dateFormat',      p.dateFormat ?? null);
 		setIfAbsent('includeTime',     def(p.includeTime, false));
 		setIfAbsent('gutenbergParser', def(p.gutenbergParser, true));
+		setIfAbsent('htmlHandling',    p.htmlHandling ?? 'convert');
 		setIfAbsent('postFilter',      p.filter ?? null);
 	}
 

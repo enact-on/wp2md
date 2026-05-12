@@ -15,23 +15,49 @@ function siteSlugFromFilename(filename) {
 	return wpMatch ? wpMatch[1] : base;
 }
 
+// Resolve the XML input path. If no argument given, auto-discover from input/.
+function resolveInputPath(inputArg) {
+	if (inputArg) return path.resolve(inputArg);
+
+	const inputDir = path.resolve('input');
+	if (fs.existsSync(inputDir)) {
+		const xmlFiles = fs.readdirSync(inputDir)
+			.filter((f) => f.toLowerCase().endsWith('.xml'))
+			.sort();
+		if (xmlFiles.length === 1) return path.resolve(inputDir, xmlFiles[0]);
+		if (xmlFiles.length > 1) {
+			console.error(chalk.red('Multiple XML files found in input/. Specify one:'));
+			xmlFiles.forEach((f) => console.error(`  wetm init input/${f}`));
+			process.exit(1);
+		}
+	}
+
+	return path.resolve('export.xml');
+}
+
 export async function runInit() {
-	const inputArg = process.argv[2] || 'export.xml';
-	const inputPath = path.resolve(inputArg);
+	const inputArg = process.argv[2];
+	const inputPath = resolveInputPath(inputArg);
 
 	if (!fs.existsSync(inputPath)) {
 		console.error(chalk.red(`Export file not found: ${inputPath}`));
-		console.error('Usage: wetm init [export.xml]');
+		console.error('Usage: wetm init [path/to/export.xml]');
+		console.error('       Drop your XML into input/ and run wetm init with no arguments.');
 		process.exit(1);
 	}
 
-	const siteSlug = siteSlugFromFilename(inputArg);
-	const configFilename = `wetm.config.${siteSlug}.js`;
+	const siteSlug = siteSlugFromFilename(inputPath);
 	const outputDir = `output/${siteSlug}`;
 
+	// Configs live in input/ (gitignored) alongside the XML files
+	const inputDir = path.resolve('input');
+	if (!fs.existsSync(inputDir)) fs.mkdirSync(inputDir);
+	const configFilename = `wetm.config.${siteSlug}.js`;
+	const configFilePath = path.join(inputDir, configFilename);
+
 	// Refuse to overwrite an existing config — require explicit deletion
-	if (fs.existsSync(path.resolve(configFilename))) {
-		console.warn(chalk.yellow(`Config already exists: ${configFilename}`));
+	if (fs.existsSync(configFilePath)) {
+		console.warn(chalk.yellow(`Config already exists: input/${configFilename}`));
 		console.warn(chalk.yellow(`Delete it first if you want to regenerate.`));
 		process.exit(1);
 	}
@@ -59,10 +85,9 @@ export async function runInit() {
 	const relativeInput = path.relative(process.cwd(), inputPath).replace(/\\/g, '/');
 	const configContent = generate(findings, relativeInput, { outputDir });
 
-	const outPath = path.resolve(configFilename);
-	await fs.promises.writeFile(outPath, configContent, 'utf8');
+	await fs.promises.writeFile(configFilePath, configContent, 'utf8');
 
-	console.log(chalk.green(`\nWrote ${configFilename}`));
+	console.log(chalk.green(`\nWrote input/${configFilename}`));
 	console.log(`Output will go to: ${chalk.cyan(outputDir)}`);
-	console.log(`Review the file, uncomment the rules you need, then run: ${chalk.bold(`node app.js --config ${configFilename}`)}`);
+	console.log(`Review the file, uncomment the rules you need, then run: ${chalk.bold(`node app.js --config input/${configFilename}`)}`);
 }

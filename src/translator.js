@@ -98,12 +98,15 @@ function initTurndownService() {
 
 // Pure HTML -> markdown via turndown (used as a fallback inside the Gutenberg
 // renderer and for non-block content, and exported for use by page-builder plugins).
+// When posts.htmlHandling is "passthrough", returns HTML as-is (image paths still rewritten).
 export function htmlToMarkdown(html) {
 	if (!html) return '';
-	let s = html.replace(/(\r?\n){2}/g, '\n<div></div>\n');
+	let s = html;
 	if (shared.config.saveImages === 'scraped' || shared.config.saveImages === 'all') {
 		s = s.replace(/(<img(?=\s)[^>]+?(?<=\s)src=")[^"]*?([^/"]+?)(\?[^"]*)?("[^>]*>)/gi, '$1images/$2$4');
 	}
+	if (shared.config.htmlHandling === 'passthrough') return s;
+	s = s.replace(/(\r?\n){2}/g, '\n<div></div>\n');
 	s = s.replace(/<(!--more( .*)?--)>/, '&lt;$1&gt;');
 	s = s.replace(/(<!-- wp:.+? \{"language":"(.+?)"\} -->\r?\n<pre )/g, '$1data-wetm-language="$2" ');
 	return turndownService.turndown(s);
