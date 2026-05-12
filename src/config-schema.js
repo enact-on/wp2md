@@ -140,11 +140,14 @@ function translate(cfg) {
 		// Strip the standard category/post_tag from enabled list — they're
 		// always included via the built-in frontmatter getters; only custom
 		// ones need to be in selectedTaxonomies for the pipeline.
+		// Use `undefined` (not `[]`) when user didn't set `enabled`, so convert.js
+		// can distinguish "not configured" (fall back to detected) from "configured
+		// as empty" (don't emit any custom taxonomies).
 		const allEnabled = t.enabled ?? null;
-		const customOnly = allEnabled
+		const customOnly = allEnabled !== null
 			? allEnabled.filter((x) => x !== 'category' && x !== 'post_tag')
-			: null;
-		setIfAbsent('taxonomies', customOnly ?? []);
+			: undefined;
+		setIfAbsent('taxonomies', customOnly);
 		setIfAbsent('taxonomyAliases', t.aliases ?? {});
 		setIfAbsent('emitTaxonomies',     def(get(t, 'emit', 'dataFile'), true));
 		setIfAbsent('emitAstroCollections', def(get(t, 'emit', 'astroCollections'), false));
@@ -168,6 +171,7 @@ function translate(cfg) {
 			'pdf', 'mp3', 'mp4', 'webm', 'doc', 'docx', 'xls', 'xlsx', 'zip'
 		]);
 		setIfAbsent('emitImageMap',        img.emitImageMap ?? false);
+		setIfAbsent('writeDelay',          img.writeDelay ?? 0);
 	}
 
 	// ── meta ──────────────────────────────────────────────────────────────

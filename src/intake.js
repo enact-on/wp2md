@@ -51,9 +51,18 @@ export async function getConfig() {
 	if (configFile) {
 		console.log(chalk.gray(`Loaded config: ${configFile.path}`));
 		const fileVal = configFile.value || {};
+		// When a new-format config was already translated by applyConfigSchema(),
+		// skip its top-level keys here — applying the raw nested objects would
+		// overwrite the flat translated values (e.g. taxonomies: [] → raw object).
+		const NEW_FORMAT_KEYS = new Set([
+			'site', 'posts', 'postTypes', 'frontmatter', 'contentFields',
+			'seo', 'taxonomies', 'images', 'meta', 'shortcodes', 'blocks',
+			'hooks', 'links', 'plugins', 'authors',
+		]);
 		// only fill in keys that the user did NOT explicitly set
 		for (const [k, v] of Object.entries(fileVal)) {
 			if (k === 'plugins' && Array.isArray(v)) continue; // plugins handled separately
+			if (shared.config._wetmConfig && NEW_FORMAT_KEYS.has(k)) continue;
 			if (shared.config[k] === undefined || shared.config[k] === '' ||
 				(Array.isArray(shared.config[k]) && shared.config[k].length === 0)) {
 				shared.config[k] = v;

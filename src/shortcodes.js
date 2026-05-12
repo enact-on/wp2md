@@ -33,7 +33,7 @@ function parseAttrs(attrString) {
 export function applyShortcodes(content, plugins, report) {
 	if (!content) return content;
 	const re = new RegExp(SHORTCODE_RE.source, 'g');
-	return content.replace(re, (full, closing, name, attrString, inner) => {
+	return content.replace(re, (full, closing, name, attrString, inner, offset, string) => {
 		if (closing) return full;
 		const attrs = parseAttrs(attrString);
 		// give plugins first dibs
@@ -61,10 +61,18 @@ export function applyShortcodes(content, plugins, report) {
 				return src ? `<${name} src="${src}" controls></${name}>` : full;
 			}
 		}
-		// unknown shortcode: track and pass through
+		// unknown shortcode: track and pass through.
+		// Skip tracking if the match is inside a Gutenberg block comment —
+		// JSON array syntax like [null,"",""] in block attribute strings
+		// matches the shortcode regex but is not a real shortcode.
 		if (report) {
-			report.unknownShortcodes ??= {};
-			report.unknownShortcodes[name] = (report.unknownShortcodes[name] ?? 0) + 1;
+			const before = string.lastIndexOf('<!--', offset);
+			const close = before >= 0 ? string.indexOf('-->', before) : -1;
+			const inBlockComment = before >= 0 && (close < 0 || close > offset);
+			if (!inBlockComment) {
+				report.unknownShortcodes ??= {};
+				report.unknownShortcodes[name] = (report.unknownShortcodes[name] ?? 0) + 1;
+			}
 		}
 		return full;
 	});

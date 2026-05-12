@@ -21,7 +21,13 @@
       "Bash(node src/index.js --config wetm.config.parkingmd.js)",
       "Bash(npx wetm *)",
       "Bash(node -e \"const d = JSON.parse\\(require\\('fs'\\).readFileSync\\('output/parkingmd/data/image-map.json','utf8'\\)\\); const entries = Object.entries\\(d\\); console.log\\('Total entries:', entries.length\\); console.log\\('First 5:', JSON.stringify\\(Object.fromEntries\\(entries.slice\\(0,5\\)\\), null, 2\\)\\);\")",
-      "Bash(Select-Object Name, PSIsContainer)"
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\preet\\\\.claude\\\\skills\\\\wetm-setup\")",
+      "Bash(Out-Null)",
+      "Bash(Write-Host \"Directory ready\")",
+      "PowerShell(\\(Get-Item \"C:\\\\Users\\\\preet\\\\.claude\\\\skills\\\\wetm-setup\\\\SKILL.md\"\\).Length; Write-Host \"Lines: $\\(\\(Get-Content 'C:\\\\Users\\\\preet\\\\.claude\\\\skills\\\\wetm-setup\\\\SKILL.md'\\).Count\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(git stash *)"
     ]
   }
 }

@@ -99,9 +99,14 @@ async function renderOne(block, ctx) {
 		}
 	}
 
-	// 3) Container blocks (no own innerHTML)
+	// 3) Container blocks — has inner blocks and no own text content.
+	// We check for empty TEXT rather than empty HTML because container blocks
+	// like kadence/column have wrapper div HTML (e.g. <div class="..."></div>)
+	// that produces no text output but causes the innerHTML.trim() check to fail,
+	// preventing recursion into children and leaving pages empty.
 	const innerHtml = block.innerHTML ?? '';
-	if ((block.innerBlocks?.length ?? 0) > 0 && innerHtml.trim() === '') {
+	const innerText = innerHtml.replace(/<[^>]+>/g, '').trim();
+	if ((block.innerBlocks?.length ?? 0) > 0 && innerText === '') {
 		const childParts = [];
 		let childJsx = false;
 		for (const child of block.innerBlocks) {

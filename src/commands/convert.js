@@ -61,9 +61,14 @@ export async function runConvert() {
 	const selectedTypes = (shared.config.postTypes && shared.config.postTypes.length > 0)
 		? shared.config.postTypes
 		: availablePostTypes.map((t) => t.type);
-	const selectedTaxonomies = (shared.config.taxonomies && shared.config.taxonomies.length > 0)
-		? shared.config.taxonomies
-		: parsed.customTaxonomies;
+	// When a new-format config is active, use its taxonomy list verbatim (may be
+	// empty — meaning "no custom taxonomies"). In CLI mode the Commander default
+	// is also [] but means "user didn't specify" → fall back to auto-detected.
+	const selectedTaxonomies = shared.config._wetmConfig !== undefined
+		? (Array.isArray(shared.config.taxonomies) ? shared.config.taxonomies : [])
+		: (shared.config.taxonomies && shared.config.taxonomies.length > 0
+			? shared.config.taxonomies
+			: parsed.customTaxonomies);
 
 	report.taxonomies = selectedTaxonomies;
 	report.authors = parsed.authors.length;

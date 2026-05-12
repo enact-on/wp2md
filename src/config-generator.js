@@ -208,10 +208,11 @@ ${indent(taxAliasLines.join('\n') || '// no custom taxonomies detected', 6)}
   },
 
   images: {
-    save: "all",       // "none" | "attached" | "scraped" | "all"
+    save: "all",         // "none" | "attached" | "scraped" | "all"
     dir: "images",
     requestDelay: 500,
     skipUrlPatterns: [],
+    emitImageMap: false, // true = write images/image-map.json mapping old URLs → new paths
   },
 
   meta: {

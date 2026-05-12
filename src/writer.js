@@ -215,7 +215,13 @@ async function loadImageFilePromise(imageUrl) {
 }
 
 function checkFile(p) {
-	return fs.existsSync(p);
+	// Treat zero-byte files as not written — a prior crashed run may have
+	// created empty placeholder files that would otherwise block re-conversion.
+	try {
+		return fs.existsSync(p) && fs.statSync(p).size > 0;
+	} catch {
+		return false;
+	}
 }
 
 function logSavingMessage(things, existingCount, remainingCount) {
