@@ -30,9 +30,10 @@ function phpAssocToObject(value) {
 	}
 	if (value && typeof value === 'object') {
 		const keys = Object.keys(value);
-		// detect a numerically-indexed PHP array starting at 0
-		const looksArray = keys.length > 0 &&
-			keys.every((k, i) => String(i) === k);
+		// detect a numerically-indexed PHP array starting at 0.
+		// Empty objects from php-unserialize always represent a:0:{} (empty PHP array),
+		// so treat length === 0 as array too (vacuous truth: [].every(...) === true).
+		const looksArray = keys.every((k, i) => String(i) === k);
 		if (looksArray) {
 			return keys.map((k) => phpAssocToObject(value[k]));
 		}

@@ -6,8 +6,14 @@ import chalk from 'chalk';
 import { analyze } from '../analyzer.js';
 import { generate } from '../config-generator.js';
 
-const CONFIG_FILENAME = 'wetm.config.js';
-const FILENAMES = ['wetm.config.js', 'wetm.config.mjs', 'wetm.config.json'];
+// Extract a short site slug from the XML filename.
+// "parkingmd.WordPress.2026-05-12.xml" → "parkingmd"
+// "mysite-export.xml" → "mysite-export"
+function siteSlugFromFilename(filename) {
+	const base = path.basename(filename, path.extname(filename));
+	const wpMatch = base.match(/^(.+?)\.WordPress\./i);
+	return wpMatch ? wpMatch[1] : base;
+}
 
 export async function runInit() {
 	const inputArg = process.argv[2] || 'export.xml';
@@ -19,10 +25,15 @@ export async function runInit() {
 		process.exit(1);
 	}
 
-	// Warn if a config already exists
-	const existing = FILENAMES.find((f) => fs.existsSync(path.resolve(f)));
-	if (existing) {
-		console.warn(chalk.yellow(`Warning: ${existing} already exists — it will be overwritten.`));
+	const siteSlug = siteSlugFromFilename(inputArg);
+	const configFilename = `wetm.config.${siteSlug}.js`;
+	const outputDir = `output/${siteSlug}`;
+
+	// Refuse to overwrite an existing config — require explicit deletion
+	if (fs.existsSync(path.resolve(configFilename))) {
+		console.warn(chalk.yellow(`Config already exists: ${configFilename}`));
+		console.warn(chalk.yellow(`Delete it first if you want to regenerate.`));
+		process.exit(1);
 	}
 
 	console.log(chalk.cyan('\nAnalyzing export file...'));
@@ -46,11 +57,12 @@ export async function runInit() {
 	console.log(`  Blocks: ${findings.blocks.length}, Shortcodes: ${findings.shortcodes.length}`);
 
 	const relativeInput = path.relative(process.cwd(), inputPath).replace(/\\/g, '/');
-	const configContent = generate(findings, relativeInput);
+	const configContent = generate(findings, relativeInput, { outputDir });
 
-	const outPath = path.resolve(CONFIG_FILENAME);
+	const outPath = path.resolve(configFilename);
 	await fs.promises.writeFile(outPath, configContent, 'utf8');
 
-	console.log(chalk.green(`\nWrote ${CONFIG_FILENAME}`));
-	console.log('Review the file, uncomment the rules you need, then run: wetm');
+	console.log(chalk.green(`\nWrote ${configFilename}`));
+	console.log(`Output will go to: ${chalk.cyan(outputDir)}`);
+	console.log(`Review the file, uncomment the rules you need, then run: ${chalk.bold(`node app.js --config ${configFilename}`)}`);
 }

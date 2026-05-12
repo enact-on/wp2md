@@ -43,10 +43,11 @@ function indent(str, spaces) {
 
 function postTypeEntry(type, count) {
 	const folder = STANDARD_POST_FOLDERS[type] || type.replace(/_/g, '-');
-	return `${type}: { enabled: true, folder: ${JSON.stringify(folder)} },  // ${count} post${count !== 1 ? 's' : ''}`;
+	const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(type) ? type : JSON.stringify(type);
+	return `${key}: { enabled: true, folder: ${JSON.stringify(folder)} },  // ${count} post${count !== 1 ? 's' : ''}`;
 }
 
-export function generate(findings, inputPath = 'export.xml') {
+export function generate(findings, inputPath = 'export.xml', { outputDir = 'output' } = {}) {
 	const {
 		siteUrl, postTypes, taxonomies, metaKeys,
 		blocks, shortcodes, detectedPlugins, detectedBuilders
@@ -56,7 +57,7 @@ export function generate(findings, inputPath = 'export.xml') {
 	const hasWoo = detectedPlugins.includes('woocommerce');
 
 	// Build plugins list: dedupe, keep only what was detected
-	const pluginList = ['acf', 'yoast', 'rankmath', 'seopress', 'woocommerce']
+	const pluginList = ['acf', 'bricks', 'yoast', 'rankmath', 'seopress', 'woocommerce']
 		.filter((p) => detectedPlugins.includes(p));
 	if (pluginList.length === 0) pluginList.push('acf'); // acf is safe default
 
@@ -90,9 +91,9 @@ export function generate(findings, inputPath = 'export.xml') {
 	);
 
 	const metaRuleLines = userMetaKeys.map(({ key, count, sampleValues }) => {
-		const sample = sampleValues[0]
-			? ` // sample: "${sampleValues[0].slice(0, 50)}"`
-			: '';
+		const raw = sampleValues[0] ?? '';
+		const sanitized = raw.replace(/[\r\n]+/g, ' ').replace(/"/g, '\\"');
+		const sample = raw ? ` // sample: "${sanitized.slice(0, 50)}"` : '';
 		return `// ${JSON.stringify(key)}: { mode: "frontmatter", alias: ${JSON.stringify(camelCase(key))} },  // ${count} use${count !== 1 ? 's' : ''}${sample}`;
 	});
 
@@ -114,9 +115,9 @@ export function generate(findings, inputPath = 'export.xml') {
 
 	// Per-plugin option lines
 	const pluginOptionLines = [];
-	if (hasWoo) pluginOptionLines.push('  woocommerce: { productKey: "product" },');
+	if (hasWoo) pluginOptionLines.push('    woocommerce: { productKey: "product" },');
 	if (detectedSeoPlugin) {
-		pluginOptionLines.push(`  ${detectedSeoPlugin}: { frontmatterKey: "seo" },`);
+		pluginOptionLines.push(`    ${detectedSeoPlugin}: { frontmatterKey: "seo" },`);
 	}
 
 	const totalPosts = postTypes.reduce((s, t) => s + t.count, 0);
@@ -138,7 +139,7 @@ export default {
   input: ${JSON.stringify(inputPath)},
 
   output: {
-    dir: "output",
+    dir: ${JSON.stringify(outputDir)},
     format: "mdx",       // "md" | "mdx" | "auto"
     dryRun: false,
   },

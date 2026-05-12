@@ -19,8 +19,28 @@ const DEFAULT_MAP = {
 	'_seopress_social_twitter_img':   'twitterImage'
 };
 
+// Render a wp:wpseopress/faq-block as a markdown FAQ list.
+// The block stores its data in attrs.faqs as a JSON array of { question, answer }.
+function renderFaqBlock(block) {
+	const faqs = block.attrs?.faqs;
+	if (!Array.isArray(faqs) || faqs.length === 0) return null;
+	const lines = [];
+	for (const faq of faqs) {
+		// question/answer may contain HTML entities or simple HTML tags — strip them
+		const q = String(faq.question ?? '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+		const a = String(faq.answer ?? '').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').trim();
+		if (q) lines.push(`**${q}**\n\n${a}`);
+	}
+	return lines.join('\n\n');
+}
+
 export const plugin = {
 	name: 'seopress',
+	onBlock({ block }) {
+		if (block.blockName === 'wpseopress/faq-block') {
+			return renderFaqBlock(block);
+		}
+	},
 	onMeta({ metas, frontmatter, consumed }) {
 		const fmKey = shared.config.seoFrontmatterKey ?? 'seo';
 		const seo = {};

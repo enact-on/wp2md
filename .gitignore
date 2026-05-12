@@ -2,6 +2,7 @@
 node_modules/
 output/
 tmp/
+input/
 
 #ignore specific filenames
 #export.xml

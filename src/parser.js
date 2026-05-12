@@ -426,6 +426,19 @@ export function collectAttachedImages(allItems, attachmentTypes) {
 	return out;
 }
 
+export function buildImageMap(allItems) {
+	const map = {};
+	for (const item of allItems) {
+		let type;
+		try { type = item.childValue('post_type'); } catch { continue; }
+		if (type !== 'attachment') continue;
+		const id = item.optionalChildValue('post_id');
+		const url = item.optionalChildValue('attachment_url');
+		if (id && url) map[id] = url;
+	}
+	return map;
+}
+
 export function collectScrapedImages(allItems, selectedTypes) {
 	const out = [];
 	for (const item of allItems) {

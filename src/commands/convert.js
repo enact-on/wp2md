@@ -102,14 +102,19 @@ export async function runConvert() {
 	}
 
 	const extras = { report };
-	if (shared.config.emitTaxonomies && selectedTaxonomies.length > 0) {
-		extras.taxonomies = taxonomiesLib.buildTaxonomyDataFiles(selectedTaxonomies, parsed.terms);
+	if (shared.config.emitTaxonomies) {
+		// Always include category and post_tag in data files alongside custom taxonomies
+		const taxForDataFiles = [...new Set(['category', 'post_tag', ...selectedTaxonomies])];
+		extras.taxonomies = taxonomiesLib.buildTaxonomyDataFiles(taxForDataFiles, parsed.terms);
 	}
 	if (shared.config.emitAuthors && parsed.authors.length > 0) {
 		extras.authors = parsed.authors;
 	}
 	if (shared.config.emitRedirects) {
 		extras.redirects = buildRedirects(posts, parsed.siteUrl);
+	}
+	if (shared.config.emitImageMap) {
+		extras.imageMap = parser.buildImageMap(parsed.allItems);
 	}
 
 	if (shared.config.dryRun) {

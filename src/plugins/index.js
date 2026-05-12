@@ -5,6 +5,7 @@ import url from 'url';
 import path from 'path';
 import * as shared from '../shared.js';
 import * as acf from './acf.js';
+import * as bricks from './bricks.js';
 import * as yoast from './yoast.js';
 import * as woocommerce from './woocommerce.js';
 import * as rankmath from './rankmath.js';
@@ -12,6 +13,7 @@ import * as seopress from './seopress.js';
 
 const BUILTIN = {
 	acf:        acf.plugin,
+	bricks:     bricks.plugin,
 	yoast:      yoast.plugin,
 	rankmath:   rankmath.plugin,
 	seopress:   seopress.plugin,

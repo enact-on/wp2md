@@ -97,8 +97,8 @@ function initTurndownService() {
 }
 
 // Pure HTML -> markdown via turndown (used as a fallback inside the Gutenberg
-// renderer and for non-block content).
-function htmlToMarkdown(html) {
+// renderer and for non-block content, and exported for use by page-builder plugins).
+export function htmlToMarkdown(html) {
 	if (!html) return '';
 	let s = html.replace(/(\r?\n){2}/g, '\n<div></div>\n');
 	if (shared.config.saveImages === 'scraped' || shared.config.saveImages === 'all') {

@@ -31,10 +31,12 @@ const PLUGIN_DETECTORS = [
 	{ name: 'aioseo',      test: (k)    => k.startsWith('_aioseop_') || k.startsWith('aioseo_') },
 	{ name: 'woocommerce', test: (k)    => WC_META_KEYS.has(k) },
 	{ name: 'acf',         test: (k, v) => k.startsWith('_') && typeof v === 'string' && v.startsWith('field_') },
+	{ name: 'bricks',      test: (k)    => k.startsWith('_bricks_page_content_') },
 ];
 
 // Page builder detectors (meta key OR content snippet)
 const BUILDER_DETECTORS = [
+	{ name: 'bricks',   metaKey: '_bricks_page_content_2' },
 	{ name: 'elementor', metaKey: '_elementor_data' },
 	{ name: 'divi',      contentSnippet: '[et_pb_' },
 	{ name: 'wpbakery',  contentSnippet: '[vc_row' },

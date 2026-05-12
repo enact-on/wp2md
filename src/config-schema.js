@@ -166,6 +166,7 @@ function translate(cfg) {
 			'gif', 'jpg', 'jpeg', 'png', 'webp', 'svg', 'avif',
 			'pdf', 'mp3', 'mp4', 'webm', 'doc', 'docx', 'xls', 'xlsx', 'zip'
 		]);
+		setIfAbsent('emitImageMap',        img.emitImageMap ?? false);
 	}
 
 	// ── meta ──────────────────────────────────────────────────────────────
@@ -243,7 +244,7 @@ function translate(cfg) {
 	setIfAbsent('emitRedirects',   true);
 	setIfAbsent('emitTaxonomies',  true);
 	setIfAbsent('emitAuthors',     true);
-	setIfAbsent('plugins',         ['acf', 'yoast', 'rankmath', 'seopress', 'woocommerce']);
+	setIfAbsent('plugins',         ['acf', 'bricks', 'yoast', 'rankmath', 'seopress', 'woocommerce']);
 	setIfAbsent('frontmatterFields', defaultFrontmatterFields());
 	setIfAbsent('maxFrontmatterStringLength', 200);
 	setIfAbsent('metaRulesParsed', {});

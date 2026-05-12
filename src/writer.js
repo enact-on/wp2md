@@ -11,7 +11,11 @@ import { buildExportBlock } from './mdx.js';
 export async function writeFilesPromise(posts, extras = {}) {
 	const writtenPath = await writeMarkdownFilesPromise(posts, extras.report);
 	if (extras.taxonomies) {
-		await writeJsonFile(path.join(shared.config.output, 'data', 'taxonomies.json'), extras.taxonomies);
+		// One JSON file per taxonomy: data/taxonomies/category.json, etc.
+		for (const [tax, terms] of Object.entries(extras.taxonomies)) {
+			const filePath = path.join(shared.config.output, 'data', 'taxonomies', `${tax}.json`);
+			await writeJsonFile(filePath, terms);
+		}
 		// Astro content collections: one JSON file per term per taxonomy
 		if (shared.config.emitAstroCollections) {
 			await writeAstroCollections(extras.taxonomies);
@@ -19,6 +23,9 @@ export async function writeFilesPromise(posts, extras = {}) {
 	}
 	if (extras.authors) {
 		await writeJsonFile(path.join(shared.config.output, 'data', 'authors.json'), extras.authors);
+	}
+	if (extras.imageMap) {
+		await writeJsonFile(path.join(shared.config.output, 'data', 'image-map.json'), extras.imageMap);
 	}
 	if (extras.redirects && extras.redirects.length > 0) {
 		const redirectsPath = shared.config.redirectsPath ?? '_redirects';

@@ -202,6 +202,13 @@ export default {
 
       // Skip a specific key
       _some_noise: 'skip',
+
+      // Wildcard patterns — '*' matches any characters in the key name.
+      // Exact key matches always win over wildcard patterns.
+      // Example: pull all review_* fields into frontmatter at once,
+      // but skip review_body (handled via contentFields instead):
+      'review_body': 'skip',
+      'review_*':    { mode: 'frontmatter' },
     },
 
     // Per-post-type overrides (merged with global rules; type wins on conflict)

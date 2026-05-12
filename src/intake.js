@@ -66,8 +66,9 @@ export async function getConfig() {
 		shared.config._configFile = configFile;
 	}
 
-	// Post-process derived values
-	shared.config.metaRulesParsed = shared.parseMetaRules(shared.config.metaRules);
+	// Post-process derived values — merge CLI rules INTO config-file rules (CLI wins on conflicts)
+	const cliRules = shared.parseMetaRules(shared.config.metaRules);
+	shared.config.metaRulesParsed = { ...(shared.config.metaRulesParsed ?? {}), ...cliRules };
 }
 
 // Interactive checkbox/inputs that depend on parsed-XML state. Called after

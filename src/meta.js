@@ -96,6 +96,18 @@ export function toIdentifier(key) {
 	return id;
 }
 
+// Finds the best matching rule for a meta key.
+// Exact matches win; then glob patterns (keys containing '*') are tried in order.
+function findRule(metaRules, key) {
+	if (Object.prototype.hasOwnProperty.call(metaRules, key)) return metaRules[key];
+	for (const pattern of Object.keys(metaRules)) {
+		if (!pattern.includes('*')) continue;
+		const re = new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+		if (re.test(key)) return metaRules[pattern];
+	}
+	return undefined;
+}
+
 export function processMeta(post, options, plugins) {
 	const rawMetas = post.data.children('postmeta')
 		.map((m) => ({
@@ -145,7 +157,7 @@ export function processMeta(post, options, plugins) {
 			continue;
 		}
 
-		const rule = options.metaRules[meta.key];
+		const rule = findRule(options.metaRules, meta.key);
 		// If no explicit rule, use unknownFallback (default: auto-classify for backward compat)
 		const defaultClassification = rule
 			? classify(meta.value, options)
