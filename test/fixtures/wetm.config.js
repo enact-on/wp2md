@@ -21,6 +21,7 @@ export default {
 		prefixDate: false,
 		dateFolders: 'none',
 		gutenbergParser: true,
+		htmlHandling: 'convert',
 	},
 
 	postTypes: {

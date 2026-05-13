@@ -28,6 +28,7 @@ export default {
     dateFormat: null,          // Luxon format string; null = ISO 8601
     includeTime: false,
     gutenbergParser: true,
+    htmlHandling: "convert",   // "convert" (HTML→markdown) | "passthrough" (keep raw HTML)
     filter: null,              // (post) => boolean — return false to exclude
   },
 

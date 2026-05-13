@@ -189,6 +189,10 @@ Always skip these — add them to `meta.deny` if not already there:
 - `_thumbnail_id` (covered automatically as `coverImage`)
 - `_bricks_page_content_2`, `_bricks_page_header_2`, `_bricks_template_type`,
   `_bricks_editor_mode`, `_bricks_template_settings`
+- Kadence Blocks per-page CSS/JS (always noise in markdown output):
+  `_kad_blocks_custom_css`, `_kad_blocks_head_custom_js`,
+  `_kad_blocks_body_custom_js`, `_kad_blocks_footer_custom_js`,
+  `kt_blocks_editor_width`
 
 ACF reference keys (underscore-prefixed keys that store the ACF field key, not the value):
 - If `my_field` exists, the corresponding `_my_field` is its ACF reference — skip it.
@@ -296,6 +300,10 @@ Ask: "For any custom fields not explicitly configured, what should happen by def
 
 Ask: "How should images be handled?"
 
+**Recommend `"none"` for the first test run** — it's faster and lets you verify content
+quality before committing to a potentially long image download. Switch to `"all"` once
+you're happy with the markdown output.
+
 Options:
 - **Download all** (`"all"`) — downloads every image URL referenced anywhere in posts
   (featured images + inline images in content). Saves to `images/` in the output dir.
@@ -337,13 +345,27 @@ Skip this group if the generated config has no `shortcodeHandlers` or `blockHand
   `data-field`, `type`, `field`, `checkbox`, `contenteditable`, `your`, `placeholder`,
   form numbers like `[MV2548]` or `[SP-41 (Permanent)]`, bracket text like `[your county]`.
   All false positives → `"skip"`.
+- **Kadence/Gutenberg JSON false positives**: Kadence and some other blocks store JSON
+  arrays in their HTML comment attributes. The shortcode regex matches fragments of that
+  JSON as shortcodes — e.g. capitalised English words (`Your`, `First`, `Date`, `Restaurant`,
+  `Specific`) or prepositions (`at`, `dot`). Any detected shortcode name that looks like a
+  capitalised common word or a JSON fragment is a false positive. Set all to `"skip"`.
 - Real shortcodes: offer options — `"skip"`, `"html"` (output raw HTML), or write a
   custom handler function.
 
 **Gutenberg blocks:** Show the user every detected block with counts. For each:
 - Page builder blocks (`elementor/*`, `divi/*`, `wpbakery/*`, `beaver-builder/*`,
-  `bricks/*`) — almost always contain visual layout data with no textual meaning.
+  `bricks/*`) — visual layout data with no textual meaning.
   Recommend: wildcard skip `"elementor/*": "skip"`.
+- **Kadence Blocks** — extremely common. Kadence uses container blocks that wrap real
+  content in inner blocks. The key distinction:
+  - Container blocks (`kadence/rowlayout`, `kadence/column`, `kadence/iconlist`) → **`"fallback"`**
+    This recurses into inner blocks where the real content lives. Using `"skip"` on these
+    produces empty page bodies. This is the most common cause of blank pages on Kadence sites.
+  - Content blocks (`kadence/listitem`, `kadence/pane`, `kadence/tab`) → **`"fallback"`**
+  - Non-content blocks (`kadence/advancedbtn`, `kadence/icon`, `kadence/spacer`) → `"skip"`
+  - Form embeds (`wpforms/form-selector`, `gravityforms/form`) → `"skip"`
+  - Timeline plugins (`cp-timeline/*`) → `"fallback"` if they contain text
 - Third-party plugin blocks with HTML content → `"html"` (output raw HTML via turndown)
 - Third-party plugin blocks you want to convert custom → write a handler function.
 
@@ -362,8 +384,10 @@ Work through each section systematically:
 3. `postTypes` — enabled/disabled with folder names per user's answers
 4. `seo` section — keep or remove based on Group C
 5. `plugins.enabled` — include/exclude based on detected plugins and user choices
-6. `taxonomies.enabled` — include all real taxonomies; remove plugin-internal ones
-   (e.g. `wpcode_location`, `wpcode_type` unless the user wants them)
+6. `taxonomies.enabled` — include all real taxonomies; remove plugin-internal ones.
+   Always exclude: `nav_menu` (WordPress navigation menus), `wp_theme` (theme taxonomy),
+   `wpcode_location`, `wpcode_tags`, `wpcode_type` (WP Code Snippets internals).
+   These appear in the "Custom taxonomies detected" output but produce useless data files.
 7. `taxonomies.emit.astroCollections: true` if using Astro with custom taxonomies
 8. `contentFields` — add entries for HTML meta fields (from Step D2)
 9. `meta.rules` — uncomment and configure based on Step D3; add wildcards
@@ -583,6 +607,48 @@ Bricks stores visual layout as JSON in `_bricks_page_content_2`. This is templat
 data, not text content. Pages built entirely in Bricks will have empty or minimal
 `post_content`. If content is missing, check if it lives in ACF fields or other meta.
 
+### Kadence Blocks pages
+
+Kadence is a popular WordPress theme/page builder that uses Gutenberg blocks. Unlike
+Elementor/Bricks, Kadence content IS stored in `post_content` as Gutenberg blocks — but
+all real content is wrapped in container blocks (`kadence/rowlayout` > `kadence/column`).
+
+**Critical:** You MUST set container blocks to `"fallback"` (recurse into inner blocks),
+NOT `"skip"` (which drops everything) or leave them unhandled (same as skip for unknown
+blocks when `unknownFallback: "skip"`).
+
+Without `"fallback"` on containers, every Kadence page produces an empty body.
+
+Standard Kadence block config:
+```js
+blocks: {
+  handlers: {
+    'kadence/rowlayout':    'fallback',
+    'kadence/column':       'fallback',
+    'kadence/iconlist':     'fallback',
+    'kadence/listitem':     'fallback',
+    'kadence/pane':         'fallback',
+    'kadence/tab':          'fallback',
+    'kadence/advancedbtn':  'skip',
+    'kadence/icon':         'skip',
+    'kadence/spacer':       'skip',
+  },
+},
+```
+
+Kadence also injects per-page CSS/JS into meta — always skip these:
+```js
+meta: {
+  rules: {
+    '_kad_blocks_custom_css':       { mode: 'skip' },
+    '_kad_blocks_head_custom_js':   { mode: 'skip' },
+    '_kad_blocks_body_custom_js':   { mode: 'skip' },
+    '_kad_blocks_footer_custom_js': { mode: 'skip' },
+    'kt_blocks_editor_width':       { mode: 'skip' },
+  },
+},
+```
+
 ### PHP-serialized multi-value fields
 
 Some plugins (gallery managers, repeaters, complex ACF fields) store data as:
@@ -701,6 +767,17 @@ meta: {
 
 9. **Taxonomy slugs with hyphens causing JS property access issues**
    In the config, use string keys with quotes: `"reviewer-state"`, not `reviewer-state`.
+
+10. **Not deleting output before re-running after config changes**
+    Existing output files are intentionally not overwritten — this allows resuming interrupted
+    runs. After changing the config (e.g. enabling Kadence fallback), delete the output
+    directory and re-run so all posts are regenerated with the new settings:
+    ```bash
+    rm -rf output/<slug>/
+    node app.js --config input/wetm.config.<slug>.js
+    ```
+    Exception: image downloads. If images are the only change, you can re-run without
+    clearing output — missing images will be downloaded and existing ones skipped.
 
 ---
 

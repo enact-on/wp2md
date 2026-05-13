@@ -119,187 +119,61 @@ output/
 
 ## `wetm.config.js` — full reference
 
-Below is a fully annotated example. Every key is optional.
+The fully annotated reference config is **`wetm.config.example.js`** in the project root. Open it alongside your generated config for a description of every option.
+
+Key sections at a glance:
+
+| Section | What it controls |
+|---|---|
+| `site` | `url`, `timezone` — used for internal link rewriting |
+| `input` | XML file, directory, or glob |
+| `output` | `dir`, `format` (`md`/`mdx`/`auto`), `dryRun` |
+| `posts` | Statuses, date folders, Gutenberg parser, `htmlHandling` |
+| `postTypes` | Per-type `enabled`, `folder`, per-type `meta.rules`, per-type `frontmatter.fields` |
+| `frontmatter` | Which fields to include, aliases, computed fields, `authorFormat`, `termsFormat` |
+| `contentFields` | Append/prepend meta field values into the post body (HTML→MD templates supported) |
+| `seo` | Plugin (`yoast`/`rankmath`/`seopress`/`aioseo`/`auto`), frontmatter key, field overrides |
+| `taxonomies` | `enabled` list, aliases, `emit.dataFile`, `emit.astroCollections` |
+| `images` | `save` (`none`/`attached`/`scraped`/`all`), `dir`, `requestDelay`, `skipUrlPatterns`, `emitImageMap` |
+| `meta` | `includePrivate`, `deny` list, per-key `rules`, `unknownFallback`, per-type overrides |
+| `shortcodes` | `unknownFallback`, per-name `handlers` (`"skip"`, `"html"`, or function) |
+| `blocks` | Per-block or wildcard `handlers` (`"skip"`, `"fallback"`, `"html"`, or function) |
+| `hooks` | `transformPost`, `transformContent`, `transformFrontmatter`, `transformImageUrl` |
+| `links` | `rewrite`, `redirects.emit`, `redirects.path`, `redirects.format` |
+| `plugins` | `enabled` list, per-plugin options, `custom` inline/path plugins |
+
+### Block handlers: page builders and Kadence
+
+For sites built with page builders, use wildcard handlers to skip or recurse into blocks:
 
 ```js
-// wetm.config.js
-export default {
+blocks: {
+  handlers: {
+    // Elementor / Divi / WPBakery — layout-only, drop entirely
+    'elementor/*': 'skip',
 
-  // ── Input / output ──────────────────────────────────────────────────────
-  input:  'exports/',           // file, directory, or glob (overridden by --input)
-  output: 'output',
-
-  // ── Post types ──────────────────────────────────────────────────────────
-  postTypes: ['post', 'page', 'case_study', 'product'],
-
-  postTypeConfig: {
-    case_study: {
-      folder:    'case-studies',   // output folder name (default: post type slug)
-      extension: 'mdx',            // 'md', 'mdx', or 'auto'
-    },
-    product: {
-      folder: 'products',
-    },
+    // Kadence Blocks — container blocks need "fallback" to recurse into content;
+    // purely layout blocks (buttons, icons) can be skipped
+    'kadence/rowlayout': 'fallback',  // outer row — recurse into columns
+    'kadence/column':    'fallback',  // column — recurse into content
+    'kadence/iconlist':  'fallback',  // list container
+    'kadence/listitem':  'fallback',  // list item content
+    'kadence/pane':      'fallback',  // accordion/tab pane
+    'kadence/tab':       'fallback',  // tab content
+    'kadence/advancedbtn': 'skip',    // button — no text value
   },
-
-  // ── Taxonomies ──────────────────────────────────────────────────────────
-  taxonomies: ['industry'],
-
-  // Write each term as src/content/[taxonomy]/[slug].json (for Astro)
-  emitAstroCollections: true,
-
-  // ── SEO plugins ─────────────────────────────────────────────────────────
-  plugins: {
-    enabled: ['acf', 'yoast', 'rankmath', 'seopress', 'woocommerce'],
-
-    seo: {
-      // Which plugin to read SEO meta from: 'yoast' | 'rankmath' | 'seopress' | 'aioseo'
-      plugin: 'yoast',
-
-      // Frontmatter key that receives the seo block (default: 'seo')
-      frontmatterKey: 'seo',
-
-      // Override individual field mappings (meta_key → seo sub-key)
-      fieldOverrides: {
-        '_yoast_wpseo_title':       'title',
-        '_yoast_wpseo_metadesc':    'description',
-        '_yoast_wpseo_canonical':   'canonical',
-      },
-    },
-  },
-
-  // ── Custom meta rules ────────────────────────────────────────────────────
-  meta: {
-    // What to do with meta keys that have no explicit rule:
-    //   null (default) = auto-classify  |  'skip'  |  'frontmatter'  |  'complex'
-    unknownFallback: null,
-
-    // Keys to always drop (in addition to built-in deny list)
-    deny: ['_some_internal_key'],
-
-    // Include private (underscore-prefixed) meta that isn't handled by plugins
-    includePrivate: false,
-
-    // Max string length before auto-classifying as complex MDX block (default: 200)
-    maxFrontmatterStringLength: 200,
-
-    rules: {
-      // Shorthand: just a mode
-      reading_time: 'frontmatter',
-
-      // Object form: mode + optional alias + optional transform
-      _price: {
-        mode:      'frontmatter',
-        alias:     'price',
-        transform: (v) => Number(v),
-      },
-
-      // Alias with dotted nesting → builds nested object in frontmatter
-      custom_title: {
-        mode:  'frontmatter',
-        alias: 'seo.title',
-      },
-
-      // Skip a specific key
-      _some_noise: 'skip',
-
-      // Wildcard patterns — '*' matches any characters in the key name.
-      // Exact key matches always win over wildcard patterns.
-      // Example: pull all review_* fields into frontmatter at once,
-      // but skip review_body (handled via contentFields instead):
-      'review_body': 'skip',
-      'review_*':    { mode: 'frontmatter' },
-    },
-
-    // Per-post-type overrides (merged with global rules; type wins on conflict)
-    perType: {
-      product: {
-        _stock_status: { mode: 'frontmatter', alias: 'product.stockStatus' },
-      },
-    },
-  },
-
-  // ── contentFields — pull meta values into the post body ─────────────────
-  //
-  // Each entry appends (or prepends) a meta field's value into the post content.
-  // Useful for ACF textarea fields, technical specs, etc.
-  contentFields: [
-    {
-      key:      'client_name',
-      heading:  '## Client',       // optional Markdown heading inserted before the value
-      position: 'append',          // 'append' (default) or 'prepend'
-    },
-    {
-      key:      'product_specs',
-      // template replaces heading — receives the raw value, returns a string
-      template: (value) => `\n\n**Specs:** ${value}\n`,
-    },
-  ],
-
-  // ── Redirect format ──────────────────────────────────────────────────────
-  // 'netlify' (default) | 'next' | 'vercel' | 'apache' | 'nginx'
-  redirectsFormat: 'netlify',
-
-  // ── Block handlers ───────────────────────────────────────────────────────
-  // Return a Markdown / MDX string, or null to fall back to generic HTML→MD.
-  blockHandlers: {
-    'core/image': ({ attrs, inner }) =>
-      `![${attrs?.alt ?? ''}](${attrs?.url ?? ''})`,
-
-    'acf/hero': ({ attrs }) =>
-      `<Hero title="${attrs?.data?.title ?? ''}" />`,
-
-    // Wildcard for a page builder — return '' to silently drop
-    'elementor/*': () => '',
-  },
-
-  // ── Shortcode handlers ───────────────────────────────────────────────────
-  shortcodeHandlers: {
-    'pricing-table': ({ attrs }) =>
-      `<PricingTable plan="${attrs.plan}" />`,
-
-    'contact-form': () => `<ContactForm />`,
-  },
-
-  // ── Transform hooks (run after all plugins) ───────────────────────────────
-  hooks: {
-    transformContent({ post, content }) {
-      // Return modified content string
-      return content.replace(/\[old-brand\]/g, 'New Brand');
-    },
-
-    transformFrontmatter({ post, frontmatter }) {
-      // Mutate frontmatter in place or return a new object
-      frontmatter.migrated = true;
-    },
-
-    transformImageUrl({ url, post }) {
-      // Rewrite image URLs before download
-      return url.replace('cdn-old.example.com', 'cdn.example.com');
-    },
-
-    transformPost({ post }) {
-      // Called last — mutate the post object directly
-    },
-  },
-
-  // ── Custom plugins ────────────────────────────────────────────────────────
-  // File paths (relative to config) or inline plugin objects.
-  customPlugins: [
-    './plugins/my-acf-plugin.js',
-    {
-      name: 'inline-example',
-      onMeta({ metas, frontmatter, consumed }) {
-        const hero = metas.find((m) => m.key === '_hero_image_id');
-        if (hero) {
-          frontmatter['heroImageId'] = hero.value;
-          consumed.add('_hero_image_id');
-        }
-      },
-    },
-  ],
-};
+},
 ```
+
+> **Warning:** On Kadence-heavy sites, forgetting `"fallback"` on container blocks
+> produces empty page bodies. Container blocks wrap the real content in inner blocks —
+> `"skip"` drops everything; `"fallback"` recurses into it.
+
+### `images.emitImageMap`
+
+Set `images.emitImageMap: true` to write `data/image-map.json` after the run — a mapping
+of every original image URL to its new local path. Useful for updating references in a
+database, CMS, or other systems after migration.
 
 ---
 
