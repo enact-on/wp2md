@@ -117,6 +117,16 @@ Ask these two questions together:
 3. **Output directory?** Suggest `output/<site-slug>/` so multiple site migrations
    never collide.
 
+4. **Include publish time in dates, or date only?** Most static site themes only need
+   a date (`date: "2026-03-07"`). If the user's theme/design shows a time (e.g. "posted
+   at 2:32 PM"), set `posts.includeTime: true` — output becomes ISO 8601 UTC
+   (`date: "2026-03-07T14:32:00Z"`). For a custom shape, use `posts.dateFormat` with a
+   Luxon format string instead.
+
+5. **Reading time estimate?** Ask: "Want an estimated reading time in frontmatter
+   (e.g. `readTime: \"4 min\"`, computed from word count at 200 wpm)?" If yes, add
+   `"readTime"` to `frontmatter.fields` (rename via `readTime:readingTime` if needed).
+
 ---
 
 #### Group B: Post types
@@ -319,6 +329,12 @@ paths?" (Useful for updating references in other systems like a database or CMS.
 Note: If the old site requires authentication or blocks hotlinking, downloading will fail
 with 403 errors. Mention this risk for large sites.
 
+**If many posts have no featured image** (check the `wetm init` discovery report or a
+quick meta scan for `_thumbnail_id`), ask: "Some posts don't have a WordPress featured
+image set. Should I fall back to the first image found inside the post body as the cover
+image?" If yes, set `images.fallbackToFirstContentImage: true`. This works regardless of
+`images.save` mode — it only affects which URL becomes `coverImage`.
+
 ---
 
 #### Group F: Redirects
@@ -429,6 +445,20 @@ If a syntax error occurs in the config, read and fix the specific line. Common i
 - Arrow function missing the closing brace
 
 Re-run after each fix.
+
+**Debugging tip — `wetm split`:** If a specific post's output looks wrong (missing
+field, garbled content, unexpected meta) and you need to see the exact raw WordPress
+data behind it, run:
+
+```bash
+node app.js split "$XML_PATH"
+```
+
+This writes one JSON file per post/page/custom-type item to
+`output/<site-slug>-split/<post-type>/<slug>.json` (full meta, raw content/excerpt,
+taxonomies) plus `_taxonomies/<domain>/<term-slug>.json` term files. Use it to compare
+a converted MDX file directly against its untouched source record instead of guessing
+from the XML.
 
 ---
 
@@ -804,3 +834,7 @@ meta: {
 | Per-type meta rules | `meta.perType: { "type": { "key": { mode: "frontmatter" } } }` |
 | Transform a field value | `meta.rules: { "price": { mode: "frontmatter", transform: (v) => Number(v) } }` |
 | Nested frontmatter key | `meta.rules: { "seo_title": { mode: "frontmatter", alias: "seo.title" } }` |
+| Cover image fallback (no featured image) | `images.fallbackToFirstContentImage: true` |
+| Reading time estimate | Add `"readTime"` to `frontmatter.fields` |
+| Include publish time in date | `posts.includeTime: true` (or `posts.dateFormat` for a custom shape) |
+| Inspect raw source data behind a post | `node app.js split "$XML_PATH"` → `output/<slug>-split/<type>/<slug>.json` |
