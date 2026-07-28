@@ -134,7 +134,7 @@ Key sections at a glance:
 | `contentFields` | Append/prepend meta field values into the post body (HTML→MD templates supported) |
 | `seo` | Plugin (`yoast`/`rankmath`/`seopress`/`aioseo`/`auto`), frontmatter key, field overrides |
 | `taxonomies` | `enabled` list, aliases, `emit.dataFile`, `emit.astroCollections` |
-| `images` | `save` (`none`/`attached`/`scraped`/`all`), `dir`, `requestDelay`, `skipUrlPatterns`, `emitImageMap` |
+| `images` | `save` (`none`/`attached`/`scraped`/`all`), `dir`, `requestDelay`, `skipUrlPatterns`, `emitImageMap`, `fallbackToFirstContentImage` |
 | `meta` | `includePrivate`, `deny` list, per-key `rules`, `unknownFallback`, per-type overrides |
 | `shortcodes` | `unknownFallback`, per-name `handlers` (`"skip"`, `"html"`, or function) |
 | `blocks` | Per-block or wildcard `handlers` (`"skip"`, `"fallback"`, `"html"`, or function) |
@@ -174,6 +174,52 @@ blocks: {
 Set `images.emitImageMap: true` to write `data/image-map.json` after the run — a mapping
 of every original image URL to its new local path. Useful for updating references in a
 database, CMS, or other systems after migration.
+
+### `images.fallbackToFirstContentImage`
+
+When no WordPress featured image is set on a post (`_thumbnail_id` absent or unresolved),
+set `images.fallbackToFirstContentImage: true` to extract the first `<img>` from the post
+content and use it as `coverImage`. Works regardless of `images.save` mode.
+
+```js
+images: {
+  fallbackToFirstContentImage: true,  // default: false
+}
+```
+
+To rename the field in your output, use the `:alias` syntax in `frontmatter.fields`:
+
+```js
+frontmatter: {
+  fields: ['title', 'date', 'coverImage:image', ...],
+  // or: 'coverImage:featuredImage'
+}
+```
+
+### `readTime` frontmatter field
+
+Add `"readTime"` to `frontmatter.fields` to emit an estimated reading time (200 wpm):
+
+```js
+frontmatter: {
+  fields: ['title', 'date', 'coverImage', 'readTime', ...],
+}
+```
+
+Output: `readTime: "4 min"`. Computed from the final converted Markdown word count.
+To rename it, use `readTime:readingTime` in the fields list.
+
+### Date format with `includeTime`
+
+Set `posts.includeTime: true` to include the publish time in the `date` frontmatter field.
+Output uses ISO 8601 UTC with no milliseconds:
+
+```yaml
+date: "2026-03-07T14:32:00Z"
+```
+
+Use `posts.dateFormat` with a [Luxon format string](https://moment.github.io/luxon/#/formatting?id=table-of-tokens)
+if you need a different shape.
 
 ---
 

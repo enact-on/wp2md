@@ -27,7 +27,15 @@
       "Bash(Write-Host \"Directory ready\")",
       "PowerShell(\\(Get-Item \"C:\\\\Users\\\\preet\\\\.claude\\\\skills\\\\wetm-setup\\\\SKILL.md\"\\).Length; Write-Host \"Lines: $\\(\\(Get-Content 'C:\\\\Users\\\\preet\\\\.claude\\\\skills\\\\wetm-setup\\\\SKILL.md'\\).Count\\)\")",
       "Bash(node -e ' *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(ls -la input/)",
+      "Bash(ls *.xml)",
+      "Bash(find . -maxdepth 2 -iname \"*leafyrx*\")",
+      "Bash(node scripts/study-leafyrx.mjs)",
+      "Bash(node scripts/study-leafyrx-meta.mjs)",
+      "Bash(rm -rf output/leafyrx)",
+      "Bash(node app.js --config input/wetm.config.leafyrx.js)",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }

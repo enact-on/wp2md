@@ -99,6 +99,7 @@ export function buildRedirects(posts, siteUrl) {
 		if (!link) continue;
 		try {
 			const u = new URL(link);
+			if (u.pathname === '/') continue; // post link points to site root — no usable old URL
 			out.push({ from: u.pathname, to: `/${shared.getPostTypeFolder(post.type)}/${shared.getSlugWithFallback(post)}/` });
 		} catch {
 			// ignore

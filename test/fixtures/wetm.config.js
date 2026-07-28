@@ -72,6 +72,7 @@ export default {
 		dir: 'images',
 		requestDelay: 0,
 		skipUrlPatterns: [],
+		fallbackToFirstContentImage: false,
 	},
 
 	meta: {

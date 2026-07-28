@@ -154,6 +154,14 @@ export function sticky(post) {
 	return v === '1' || v === 'true' ? true : undefined;
 }
 
+export function readTime(post) {
+	const content = post.content ?? '';
+	const words = content.trim().split(/\s+/).filter(Boolean).length;
+	if (words === 0) return undefined;
+	const minutes = Math.max(1, Math.round(words / 200));
+	return `${minutes} min`;
+}
+
 // Aggregate of every custom taxonomy term we collected. Useful as a single
 // catch-all field in the frontmatter without listing each taxonomy by name.
 export function taxonomies(post) {

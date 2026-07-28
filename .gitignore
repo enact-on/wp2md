@@ -11,3 +11,5 @@ input/
 test/.manual-out
 test/output
 test/output-config
+
+/html-wp-rocket

@@ -20,9 +20,19 @@ function isNewFormat(cfg) {
 }
 
 export async function applyConfigSchema() {
-	// Respect --config CLI flag before Commander has parsed argv
-	const configArgIdx = process.argv.indexOf('--config');
-	const explicitPath = configArgIdx >= 0 ? process.argv[configArgIdx + 1] : undefined;
+	// Respect --config CLI flag before Commander has parsed argv.
+	// Handles both "--config path" and "--config=path" forms.
+	let explicitPath;
+	for (const arg of process.argv) {
+		if (arg.startsWith('--config=')) {
+			explicitPath = arg.slice('--config='.length);
+			break;
+		}
+	}
+	if (!explicitPath) {
+		const configArgIdx = process.argv.indexOf('--config');
+		if (configArgIdx >= 0) explicitPath = process.argv[configArgIdx + 1];
+	}
 
 	const configFile = await loadConfigFile(explicitPath).catch(() => null);
 	if (!configFile) return;
@@ -170,8 +180,9 @@ function translate(cfg) {
 			'gif', 'jpg', 'jpeg', 'png', 'webp', 'svg', 'avif',
 			'pdf', 'mp3', 'mp4', 'webm', 'doc', 'docx', 'xls', 'xlsx', 'zip'
 		]);
-		setIfAbsent('emitImageMap',        img.emitImageMap ?? false);
-		setIfAbsent('writeDelay',          img.writeDelay ?? 0);
+		setIfAbsent('emitImageMap',                  img.emitImageMap ?? false);
+		setIfAbsent('writeDelay',                    img.writeDelay ?? 0);
+		setIfAbsent('fallbackToFirstContentImage',   img.fallbackToFirstContentImage ?? false);
 	}
 
 	// ── meta ──────────────────────────────────────────────────────────────

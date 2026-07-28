@@ -12,7 +12,10 @@ function normalize(value) {
 		if (shared.config.dateFormat) {
 			return value.toFormat(shared.config.dateFormat);
 		}
-		return shared.config.includeTime ? value.toISO() : value.toISODate();
+		if (shared.config.includeTime) {
+			return value.toUTC().toISO({ suppressMilliseconds: true });
+		}
+		return value.toISODate();
 	}
 
 	if (Array.isArray(value)) {

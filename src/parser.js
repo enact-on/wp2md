@@ -507,4 +507,15 @@ export function mergeImagesIntoPosts(images, posts) {
 			}
 		}
 	}
+
+	if (shared.config.fallbackToFirstContentImage) {
+		for (const post of posts) {
+			if (post.coverImage) continue;
+			const content = post.data.optionalChildValue('encoded') ?? '';
+			const m = content.match(/<img[^>]+?(?:src|data-src|data-lazy-src)=["']([^"']+)["']/i);
+			if (m) {
+				post.coverImage = shared.getFilenameFromUrl(m[1]);
+			}
+		}
+	}
 }

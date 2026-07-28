@@ -213,6 +213,7 @@ ${indent(taxAliasLines.join('\n') || '// no custom taxonomies detected', 6)}
     requestDelay: 500,
     skipUrlPatterns: [],
     emitImageMap: false, // true = write images/image-map.json mapping old URLs → new paths
+    fallbackToFirstContentImage: false, // true = use first <img> in content as coverImage when no featured image is set
   },
 
   meta: {

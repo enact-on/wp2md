@@ -94,7 +94,7 @@ export function load() {
 		{
 			name: 'frontmatter-fields',
 			type: 'list',
-			description: 'Built-in frontmatter fields. Available: author, authorSlug, categories, commentStatus, coverImage, date, draft, excerpt, id, menuOrder, modified, parent, password, permalink, pingStatus, postFormat, slug, status, sticky, tags, taxonomies, title, type. Append :alias to rename.',
+			description: 'Built-in frontmatter fields. Available: author, authorSlug, categories, commentStatus, coverImage, date, draft, excerpt, id, menuOrder, modified, parent, password, permalink, pingStatus, postFormat, readTime, slug, status, sticky, tags, taxonomies, title, type. Append :alias to rename.',
 			default: 'title,date,modified,categories,tags,coverImage,draft,author,slug,type,excerpt'
 		},
 		{
